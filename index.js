@@ -15,7 +15,7 @@ app.get('/', (req, res) => {
     console.log("req.body")
 })
 
-const PORT = 8080;
+const PORT = 3306;
 
 app.listen(PORT, () => {
     console.log(`Server is Running ${PORT}`);
