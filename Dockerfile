@@ -1,5 +1,5 @@
 # Use Node.js v14
-FROM node:16
+FROM node:14
 
 # Create app directory
 WORKDIR /app
@@ -16,4 +16,4 @@ COPY . .
 # Expose the port
 EXPOSE 8080
 
-CMD [ "node", "index.js" ]
+CMD [ "node", "index" ]
