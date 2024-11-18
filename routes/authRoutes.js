@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import multer from 'multer'
 import { unlink } from 'node:fs';
+import e from 'express'
 
 const router = express.Router();
 const JWT_KEY = "alumniItech"
@@ -279,6 +280,39 @@ router.post('/profile/update', verifyToken, upload.single("file"), async (req, r
 })
 
 
+router.post('/participate/alumni', verifyToken, async (req, res)=>{
+    const {student_id, event_id} = req.body
+    try {
+        const db = await connectToDatabase();
+
+        const [rows] = await db.query(`SELECT p.student_id FROM participant AS p INNER JOIN students AS s ON p.student_id = s.id INNER JOIN course AS c ON s.course = c.id WHERE p.event_id = ${event_id};`);
+        let student_ids = []
+        rows.map(row=>{
+            student_ids.push(row.student_id)
+        })
+
+        if(student_ids.includes(parseInt(student_id))){
+            return res.status(200).json({message: 'you already participate'})
+        }
+        db.query(`INSERT INTO participant(event_id, student_id) VALUES ('${event_id}','${student_id}')`);
+        return res.status(200).json({message: 'participate success'});
+    } catch (error) {
+        return res.status(500).json({message: 'server error'})
+    }
+})
+
+router.get('/participants/:id', verifyToken, async (req, res)=>{
+    const id = req.params.id;
+    try {
+        const db = await connectToDatabase();
+        const [rows] = await db.query(`SELECT s.firstname, s.lastname, c.course, s.batch, s.profile_pic, p.event_id FROM participant AS p INNER JOIN students AS s ON p.student_id = s.id INNER JOIN course AS c ON s.course = c.id WHERE p.event_id = ${id};`);
+        return res.status(200).json({rows});
+    } catch (error) {
+        return res.status(500).json({message: 'server error'})
+    }
+})
+
+
 router.post('/jobs/post', verifyToken, async (req, res)=>{
     const {posted_user ,company, job_title, location_data, email ,description} = req.body
     try {
@@ -371,6 +405,16 @@ router.get('/admin/gallery', async (req, res)=>{
     }
 });
 
+router.get('/admin/jobs', verifyToken, async (req, res)=>{
+    try {
+        const db = await connectToDatabase();
+        const [rows] = await db.query(`SELECT j.id, a.contact_num ,j.posted_user, a.profile_pic ,a.firstname, a.middlename, a.lastname, j.company_name, j.job_title, j.location, j.email, j.description, j.datepost FROM jobs AS j INNER JOIN students AS a ON j.posted_user = a.id ORDER BY j.id DESC`);
+        return res.status(200).json({rows});
+    } catch (error) {
+        return res.status(500).json({message: 'server error'});
+    }
+})
+
 router.delete('/admin/deleteGallery', verifyToken, async (req, res)=>{
     const id = req.body.id;
     try {
@@ -405,7 +449,7 @@ router.post('/admin/event', verifyToken, upload.single("file"), async (req, res)
 
 router.get('/admin/event/:filter', verifyToken, async (req, res)=>{
     const filter = req.params.filter;
-    let sql = "SELECT * FROM event ORDER BY schedule DESC"; 
+    let sql = "SELECT * FROM event ORDER BY id DESC"; 
     if(filter!=='all'){
         sql = `SELECT * FROM event WHERE CAST(schedule AS date) LIKE '${filter}' ORDER BY schedule DESC`; 
     }
@@ -441,6 +485,31 @@ router.get('/admin/account', verifyToken, async (req, res)=>{
         const [row] = await db.query('SELECT * FROM user');
         return res.status(200).json({row});
     } catch (error) {
+        return res.status(500).json({message: 'server error'})
+    }
+})
+
+
+router.get('/admin/system_setting', async (req, res)=>{
+    try {
+        const db = await connectToDatabase();
+        const [row] = await db.query('SELECT * FROM system_data');
+        return res.status(200).json({row: row[0]});
+    } catch (error) {
+        return res.status(500).json({message: 'server error'})
+    }
+})
+
+
+
+router.put('/admin/system_setting', verifyToken, async (req, res)=>{
+    req.body.contact_number = req.body.contact_number.toString();
+    const {id, system_title, about, email, contact_number} = req.body;
+    try{
+        const db = await connectToDatabase();
+        await db.query(`UPDATE system_data SET system_title='${system_title}',about='${about}',contact_number='${contact_number}',email='${email}' WHERE id = '${id}'`);
+        return res.status(200).json({message: 'update success'});
+    }catch(error){
         return res.status(500).json({message: 'server error'})
     }
 })
