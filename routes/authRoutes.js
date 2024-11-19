@@ -305,19 +305,55 @@ router.get('/participants/:id', verifyToken, async (req, res)=>{
     const id = req.params.id;
     try {
         const db = await connectToDatabase();
-        const [rows] = await db.query(`SELECT s.firstname, s.lastname, c.course, s.batch, s.profile_pic, p.event_id FROM participant AS p INNER JOIN students AS s ON p.student_id = s.id INNER JOIN course AS c ON s.course = c.id WHERE p.event_id = ${id};`);
+        const [rows] = await db.query(`SELECT s.firstname, s.lastname, s.id, c.course, s.batch, s.profile_pic, p.event_id FROM participant AS p INNER JOIN students AS s ON p.student_id = s.id INNER JOIN course AS c ON s.course = c.id WHERE p.event_id = ${id};`);
         return res.status(200).json({rows});
     } catch (error) {
         return res.status(500).json({message: 'server error'})
     }
 })
 
+router.delete('/participate/delete', verifyToken, async (req, res)=>{
+    const {id, event_id} = req.body
+    try {
+        const db = await connectToDatabase();
+        await db.query(`DELETE FROM participant WHERE event_id = '${event_id}' AND student_id = '${id}'`);
+        return res.status(200).json({message: 'cancel success'});
+    } catch (error) {
+        return res.status(500).json({message: 'server error'});
+    }
+})
+
 
 router.post('/jobs/post', verifyToken, async (req, res)=>{
     const {posted_user ,company, job_title, location_data, email ,description} = req.body
+
+    var now     = new Date(); 
+    var year    = now.getFullYear();
+    var month   = now.getMonth()+1; 
+    var day     = now.getDate();
+    var hour    = now.getHours();
+    var minute  = now.getMinutes();
+    var second  = now.getSeconds(); 
+    if(month.toString().length == 1) {
+            month = '0'+month;
+    }
+    if(day.toString().length == 1) {
+            day = '0'+day;
+    }   
+    if(hour.toString().length == 1) {
+            hour = '0'+hour;
+    }
+    if(minute.toString().length == 1) {
+            minute = '0'+minute;
+    }
+    if(second.toString().length == 1) {
+            second = '0'+second;
+    }   
+    var dateTime = year+'-'+month+'-'+day+' '+hour+':'+minute+':'+second;
+
     try {
         const db = await connectToDatabase();
-        await db.query(`INSERT INTO jobs(posted_user, company_name, job_title, location, email, description) VALUES ('${posted_user}','${company}','${job_title}','${location_data}', '${email}', '${description}')`);
+        await db.query(`INSERT INTO jobs(posted_user, company_name, job_title, location, email, description, datepost) VALUES ('${posted_user}','${company}','${job_title}','${location_data}', '${email}', '${description}', '${dateTime}')`);
         return res.status(200).json({message: 'post success'});
     } catch (error) {
         return res.status(500).json({message: 'server error'});
@@ -385,9 +421,24 @@ router.get('/admin/home', verifyToken, async (req, res)=>{
 router.post('/admin/gallery', verifyToken ,upload.single("file"), async (req, res)=>{
     const caption = req.body.caption;
     const file = req.file.filename;
+
+    
+    var now     = new Date(); 
+    var year    = now.getFullYear();
+    var month   = now.getMonth()+1; 
+    var day     = now.getDate();
+    if(month.toString().length == 1) {
+            month = '0'+month;
+    }
+    if(day.toString().length == 1) {
+            day = '0'+day;
+    }   
+      
+    var dateTime = year+'-'+month+'-'+day
+
     try {
         const db = await connectToDatabase();
-        await db.query(`INSERT INTO gallery(caption, image) VALUES ('${caption}','${file}')`);
+        await db.query(`INSERT INTO gallery(caption, image, date_upload) VALUES ('${caption}','${file}','${dateTime}')`);
         return res.status(200).json({message: 'post success'});
     } catch (error) {
         return res.status(500).json({message: 'server error'})
