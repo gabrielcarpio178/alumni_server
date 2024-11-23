@@ -1,15 +1,9 @@
 import express, { urlencoded } from 'express'
 import cors from 'cors'
 import authRouter from './routes/authRoutes.js'
-import moment from 'moment'
+import logger from './logger/logger.js'
 
 const app = express()
-
-const logger = (req, res, next) =>{
-    console.log(`${req.protocol}://${req.get('host')}${req.originalUrl} : ${moment().format()}`);
-    next();
-}
-
 app.use(logger);
 app.use(cors());
 app.use(express.json())
