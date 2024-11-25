@@ -1,6 +1,6 @@
 import {connectToDatabase} from '../lib/db.js'
-import { unlink } from 'node:fs';
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcrypt';
+import { main } from '../lib/sendemail.js';
 
 export const edit_course = async (req, res)=>{
     const id = req.body.id;
@@ -20,17 +20,23 @@ export const edit_course = async (req, res)=>{
 }
 
 export const user_statsUpdate = async (req, res)=>{
-    const id = req.body.id;
-    const status = req.body.status;
-    
+    const {id, status, email} = req.body;
     try {
         const db = await connectToDatabase();
         await db.query(`UPDATE students SET status='${status}' WHERE id = '${id}'`);
+
+        const message = `<h1>Alumni Itech system admin</h1><p>We are pleased to inform you that your account application has been ${status==1?"Activate":"Deactivate"}. Thank you</p>`
+        const subjectSend = status==1?"Your Account Activate":"Your Account Deactivate";
+        main(email, message, subjectSend).catch(e=>{
+            console.log(e)
+        })
+
         return res.status(200).json({message: 'update success'});
     } catch (error) {
         return res.status(500).json({message: 'server error'})
     }
 }
+
 
 export const edit_job =  async (req, res)=>{
     const {id, company_name, job_title, location, email, description} = req.body;

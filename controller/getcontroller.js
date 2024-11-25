@@ -1,6 +1,5 @@
 import {connectToDatabase} from '../lib/db.js'
 
-
 export const course = async (req, res)=>{
     const search = req.params.search;
     let search_sql = `SELECT * FROM course ORDER BY id DESC`;

@@ -3,6 +3,8 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { unlink } from 'node:fs';
 import { JWT_KEY } from '../middleware/verifyToken.js'
+import moment from 'moment'
+import {main} from '../lib/sendemail.js'
 
 export const login = async (req, res) => {
     const {email, password} = req.body;
@@ -34,8 +36,15 @@ export const login = async (req, res) => {
     }
 }
 
+const generateOtp = () => {
+    return Math.floor(1000 + Math.random() * 9000);
+}
+
 export const register = async (req, res)=>{
     const {lastname, firstname, middlename, gender, birthday, course, contactnumber, batch, email, student_id, password} = req.body;
+    const expire_time = moment().add(30, 'minutes').format();
+    const otp = generateOtp().toString();
+    const hashOtp = await bcrypt.hash(otp, 10)
     if(student_id.toString().length===11){
         try {
             const db = await connectToDatabase()
@@ -48,18 +57,50 @@ export const register = async (req, res)=>{
             if(admin_row.length > 0) {
                 return res.status(201).json({message : "user already existed"})
             }
-    
-            const hashPassword = await bcrypt.hash(password, 10)
-            await db.query(`INSERT INTO students(firstname, middlename, lastname, gender, birthday, course, batch, contact_num, student_id, email, password) VALUES ('${firstname}','${middlename}','${lastname}','${gender}','${birthday}','${course}', '${batch}', '0${contactnumber}','${student_id}', '${email}','${hashPassword}')`);
-            return res.status(201).json({message: "user created successfully"})
-    
+
+            const message = `<h1>Your OTP is ${otp}</h1><p>This code is valid for 30 minutes. Please enter it on the website to complete your verification. If you didn’t request this, please ignore this message.</p>`
+            const subjectSend = "Verify Your Account";
+            main(email, message, subjectSend).catch(e=>{
+                console.log(e)
+            })
+
+            return res.status(201).json({message: "user created successfully", role: 'verification', request_data: {lastname, firstname, middlename, gender, birthday, course, contactnumber: "0"+contactnumber.toString(), batch, email, student_id, password, expire_time, hashOtp}})
         } catch(err) {
             return res.status(500).json(err.message)
         }
     }
-    
     return res.status(201).json({message: "Student id must be 11 digits"})
 } 
+
+export const resendOTP = async (req, res) => {
+    const email = req.body.email;
+    const otp = generateOtp().toString();
+    const expire_time = moment().add(30, 'minutes').format();
+    const hashOtp = await bcrypt.hash(otp, 10)
+
+    const message = `<h1>Your OTP is ${otp}</h1><p>This code is valid for 30 minutes. Please enter it on the website to complete your verification. If you didn’t request this, please ignore this message.</p>`
+    const subjectSend = "Verify Your Account";
+    main(email, message, subjectSend).catch(e=>{
+        console.log(e)
+    })
+    return res.status(201).json({request_data: {expire_time, hashOtp}})
+}
+
+export const verification_OTP = async (req, res)=>{
+    const {lastname, firstname, middlename, gender, birthday, course, contactnumber, batch, email, student_id, password, hashOtp, otp} = req.body;
+    var isMatch = await bcrypt.compare(otp, hashOtp);
+    if(isMatch){
+        try {
+            const db = await connectToDatabase();
+            const hashPassword = await bcrypt.hash(password, 10)
+            await db.query(`INSERT INTO students(firstname, middlename, lastname, gender, birthday, course, batch, contact_num, student_id, email, password) VALUES ('${firstname}','${middlename}','${lastname}','${gender}','${birthday}','${course}', '${batch}', '0${contactnumber}','${student_id}', '${email}','${hashPassword}')`);
+            return res.status(200).json({message: 'success'})
+        } catch (error) {
+            return res.status(500).json({message: 'server error'})
+        }
+    }
+    return res.status(200).json({message: 'invalid otp'})
+}
 
 export const add_course = async (req, res)=>{
     const course = req.body.course;
@@ -108,7 +149,7 @@ export const update_profile = async (req, res)=>{
         if(data[0].profile_pic !== null&&req.file !== undefined){
             unlink(`uploads/${data[0].profile_pic}`, (err) => {
                 if (err) throw err;
-                console.log(`uploads/${data[0].profile_pic} was deleted`);
+                // console.log(`uploads/${data[0].profile_pic} was deleted`);
             });
         }
 
@@ -145,35 +186,10 @@ export const alumni = async (req, res)=>{
 }
 
 export const post_job = async (req, res)=>{
-    const {posted_user ,company, job_title, location_data, email ,description} = req.body;
-
-    var now     = new Date(); 
-    var year    = now.getFullYear();
-    var month   = now.getMonth()+1; 
-    var day     = now.getDate();
-    var hour    = now.getHours();
-    var minute  = now.getMinutes();
-    var second  = now.getSeconds(); 
-    if(month.toString().length == 1) {
-            month = '0'+month;
-    }
-    if(day.toString().length == 1) {
-            day = '0'+day;
-    }   
-    if(hour.toString().length == 1) {
-            hour = '0'+hour;
-    }
-    if(minute.toString().length == 1) {
-            minute = '0'+minute;
-    }
-    if(second.toString().length == 1) {
-            second = '0'+second;
-    }   
-    var dateTime = year+'-'+month+'-'+day+' '+hour+':'+minute+':'+second;
-
+    const {posted_user ,company, job_title, location_data, email ,description} = req.body
     try {
         const db = await connectToDatabase();
-        await db.query(`INSERT INTO jobs(posted_user, company_name, job_title, location, email, description, datepost) VALUES ('${posted_user}','${company}','${job_title}','${location_data}', '${email}', '${description}', '${dateTime}')`);
+        await db.query(`INSERT INTO jobs(posted_user, company_name, job_title, location, email, description) VALUES ('${posted_user}','${company}','${job_title}','${location_data}', '${email}', '${description}')`);
         return res.status(200).json({message: 'post success'});
     } catch (error) {
         return res.status(500).json({message: 'server error'});
@@ -183,23 +199,9 @@ export const post_job = async (req, res)=>{
 export const post_gallery = async (req, res)=>{
     const caption = req.body.caption;
     const file = req.file.filename;
-
-    var now     = new Date(); 
-    var year    = now.getFullYear();
-    var month   = now.getMonth()+1; 
-    var day     = now.getDate();
-    if(month.toString().length == 1) {
-            month = '0'+month;
-    }
-    if(day.toString().length == 1) {
-            day = '0'+day;
-    }   
-      
-    var dateTime = year+'-'+month+'-'+day
-
     try {
         const db = await connectToDatabase();
-        await db.query(`INSERT INTO gallery(caption, image, date_upload) VALUES ('${caption}','${file}','${dateTime}')`);
+        await db.query(`INSERT INTO gallery(caption, image) VALUES ('${caption}','${file}')`);
         return res.status(200).json({message: 'post success'});
     } catch (error) {
         return res.status(500).json({message: 'server error'})
