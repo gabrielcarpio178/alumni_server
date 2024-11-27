@@ -37,8 +37,17 @@ export const deleteReq = async (req, res)=>{
     } catch (error) {
         return res.status(500).json({message: 'server error'});
     }
+}
 
-    
+export const deleteAccomplishment = async (req, res)=>{
+    const {id} = req.body;
+    try {
+        const db = await connectToDatabase();
+        await db.query(`DELETE FROM accomplishment WHERE id = '${id}'`);
+        return res.status(200).json({message: 'delete success'});
+    } catch (error) {
+        return res.status(500).json({message: 'server error'});
+    }
 }
 
 export const delete_participant = async (req, res)=>{

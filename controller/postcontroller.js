@@ -102,6 +102,17 @@ export const verification_OTP = async (req, res)=>{
     return res.status(200).json({message: 'invalid otp'})
 }
 
+export const addAccomplishment = async (req, res)=>{
+    const {student_id, accomplishment} = req.body;
+    try {
+            const db = await connectToDatabase();
+            await db.query(`INSERT INTO accomplishment(student_id, accomplishment) VALUES ('${student_id}','${accomplishment}')`);
+            return res.status(200).json({message: 'success'})
+        } catch (error) {
+            return res.status(500).json({message: 'server error'})
+        }
+}
+
 export const add_course = async (req, res)=>{
     const course = req.body.course;
     try {
@@ -149,7 +160,6 @@ export const update_profile = async (req, res)=>{
         if(data[0].profile_pic !== null&&req.file !== undefined){
             unlink(`uploads/${data[0].profile_pic}`, (err) => {
                 if (err) throw err;
-                // console.log(`uploads/${data[0].profile_pic} was deleted`);
             });
         }
 
@@ -186,10 +196,11 @@ export const alumni = async (req, res)=>{
 }
 
 export const post_job = async (req, res)=>{
-    const {posted_user ,company, job_title, location_data, email ,description} = req.body
+    const {posted_user ,company, job_title, location_data, email ,description} = req.body;
+    const date_upload = moment().format("YYYY-MM-DD HH:mm:ss");
     try {
         const db = await connectToDatabase();
-        await db.query(`INSERT INTO jobs(posted_user, company_name, job_title, location, email, description) VALUES ('${posted_user}','${company}','${job_title}','${location_data}', '${email}', '${description}')`);
+        await db.query(`INSERT INTO jobs(posted_user, company_name, job_title, location, email, description, datepost) VALUES ('${posted_user}','${company}','${job_title}','${location_data}', '${email}', '${description}', '${date_upload}')`);
         return res.status(200).json({message: 'post success'});
     } catch (error) {
         return res.status(500).json({message: 'server error'});
@@ -199,9 +210,10 @@ export const post_job = async (req, res)=>{
 export const post_gallery = async (req, res)=>{
     const caption = req.body.caption;
     const file = req.file.filename;
+    const date_upload = moment().format("YYYY-MM-DD");
     try {
         const db = await connectToDatabase();
-        await db.query(`INSERT INTO gallery(caption, image) VALUES ('${caption}','${file}')`);
+        await db.query(`INSERT INTO gallery(caption, image, date_upload) VALUES ('${caption}','${file}', '${date_upload}')`);
         return res.status(200).json({message: 'post success'});
     } catch (error) {
         return res.status(500).json({message: 'server error'})

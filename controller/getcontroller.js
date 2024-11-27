@@ -30,18 +30,66 @@ export const student_id = async (req, res)=>{
     }
 }
 
+export const getAccomplishment = async (req, res)=>{
+    const id = req.params.id;
+    try {
+        const db = await connectToDatabase();
+        const [accomplishments] = await db.query(`SELECT a.id ,a.accomplishment FROM accomplishment AS a WHERE student_id = '${id}'`)
+        return res.status(200).json({accomplishments});
+    } catch (error) {
+        return res.status(500).json(error.message)
+    }
+}
+
+export const getAlumni =  async (req, res)=>{
+    const {id, search} = req.params
+    let sql = `SELECT s.*, a.accomplishment, c.course AS course_name FROM course AS c INNER JOIN students AS s ON c.id = s.course LEFT JOIN accomplishment AS a ON s.id = a.student_id WHERE s.status = '1' AND s.id != '${id}'`
+    if(search!=='all'){
+        sql+=` AND s.email LIKE '%${search}%';`
+    }
+    try {
+        const db = await connectToDatabase();
+        const [alumnu] = await db.query(sql);
+        let ret_alumnu = []
+        let temp_id = 0;
+        alumnu.forEach(alumni => {
+            if(alumni.id!==temp_id){
+                ret_alumnu.push({firstname:alumni.firstname, middlename:alumni.middlename, lastname:alumni.lastname, gender:alumni.gender, batch:alumni.batch, contact_num:alumni.contact_num, profile_pic:alumni.profile_pic, student_id:alumni.student_id, course_name:alumni.course_name, email:alumni.email, accomplishments: [alumni.accomplishment]})
+            }else{
+                ret_alumnu[ret_alumnu.length-1].accomplishments.push(alumni.accomplishment)
+            }
+            temp_id = alumni.id;
+        });
+        return res.status(200).json({data_result: ret_alumnu});
+    } catch (error) {
+        console.log(error)
+    }
+}
+
 export const alumnilist_search = async (req, res)=>{
     const search = req.params.search;
-    let sql = "SELECT s.*, c.course FROM students AS s INNER JOIN course AS c ON s.course = c.id ORDER BY s.id DESC";
+    let sql = "SELECT s.*, c.course as course_name, a.accomplishment FROM course AS c INNER JOIN students AS s ON s.course = c.id LEFT JOIN accomplishment AS a ON a.student_id = s.id ORDER BY s.id DESC";
     
     if(search!=='all'){
-        sql = `SELECT s.*, c.course FROM students AS s INNER JOIN course AS c ON s.course = c.id WHERE s.firstname LIKE '%${search}%' OR s.middlename LIKE '%${search}%' OR s.lastname LIKE '%${search}%' OR s.student_id LIKE '%${search}%' ORDER BY s.id DESC`;
+        sql = `SELECT s.*, c.course as course_name, a.accomplishment FROM course AS c INNER JOIN students AS s ON s.course = c.id LEFT JOIN accomplishment AS a ON a.student_id = s.id WHERE s.firstname LIKE '%${search}%' OR s.middlename LIKE '%${search}%' OR s.lastname LIKE '%${search}%' OR s.student_id LIKE '%${search}%' ORDER BY s.id DESC`;
     }
     try {
         const db = await connectToDatabase();
         const [rows] = await db.query(sql);
+
+        let ret_alumnu = []
+        let temp_id = 0;
+        rows.forEach(row => {
+            if(row.id!==temp_id){
+                ret_alumnu.push({firstname:row.firstname, middlename:row.middlename, lastname:row.lastname, gender:row.gender, batch:row.batch, contact_num:row.contact_num, profile_pic:row.profile_pic, student_id:row.student_id, course_name:row.course_name, email:row.email, status:row.status,accomplishments: [row.accomplishment]})
+            }else{
+                ret_alumnu[ret_alumnu.length-1].accomplishments.push(row.accomplishment)
+            }
+            temp_id = row.id;
+        });
+        
         if(rows.length!==0){
-            return res.status(200).json({rows});
+            return res.status(200).json({ret_alumnu});
         }
         return res.status(200).json({message: 'not found'});
     } catch (error) {

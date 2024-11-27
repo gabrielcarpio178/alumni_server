@@ -37,6 +37,17 @@ export const user_statsUpdate = async (req, res)=>{
     }
 }
 
+export const editAccomplishment = async (req, res)=>{
+    const {id, accomplishment} = req.body;
+    try {
+        const db = await connectToDatabase();
+        await db.query(`UPDATE accomplishment SET accomplishment='${accomplishment}' WHERE id = ${id}`);
+        return res.status(200).json({message: 'update success'});
+    } catch (error) {
+        return res.status(500).json({message: 'server error'});
+    }
+}
+
 
 export const edit_job =  async (req, res)=>{
     const {id, company_name, job_title, location, email, description} = req.body;
@@ -54,9 +65,10 @@ export const system_setting_update = async (req, res)=>{
     const {id, system_title, about, email, contact_number} = req.body;
     try{
         const db = await connectToDatabase();
-        await db.query(`UPDATE system_data SET system_title='${system_title}',about='${about}',contact_number='${contact_number}',email='${email}' WHERE id = '${id}'`);
+        await db.query(`UPDATE system_data SET system_title=?,about=?,contact_number=?,email=? WHERE id = ?`,[system_title, about, contact_number, email, id]);
         return res.status(200).json({message: 'update success'});
     }catch(error){
+        console.log(error)
         return res.status(500).json({message: 'server error'})
     }
 }
